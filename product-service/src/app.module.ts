@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { createObserveModule } from '@nestjs/observe';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService} from '@nestjs/config';
 import { ProductModule } from './product/product.module.js';
 import {TypeOrmModule} from "@nestjs/typeorm";
+import {Product} from "./product/entities/product.entities.js";
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -17,6 +18,20 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     }),
     ConfigModule.forRoot({isGlobal: true}),
     TypeOrmModule.forRoot(),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        type: "postgres",
+        host: config.get('DB_HOST'),
+        port: config.get('DB_PORT'),
+        username: config.get('DB_USERNAME'),
+        password: config.get('DB_PASSWORD'),
+        database: config.get('DB_DATABASE'),
+        entities: [Product],
+        migrations: ['dist/migrations/*.js'],
+        synchronize: false,
+      })
+    }),
     ProductModule
   ],
   controllers: [AppController],
