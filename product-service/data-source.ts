@@ -1,6 +1,5 @@
 import { DataSource } from 'typeorm';
 import * as dotenv from 'dotenv';
-import { Product } from './src/product/entities/product.entities.js';
 
 dotenv.config();
 
@@ -10,7 +9,7 @@ export default new DataSource({
   port: parseInt(process.env.DB_PORT || '5432', 10),
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
-  database: process.env.DB_DATABASE,
-  entities: [Product],
-  migrations: ['dist/migrations/*.ts'],
+  database: process.env.DB_NAME,
+  entities: ['src/product/entities/*.entity.ts'],
+  migrations: ['src/migrations/*.ts'],
 });
