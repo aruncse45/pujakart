@@ -23,6 +23,7 @@
     "typeorm": "typeorm-ts-node-esm"
   },
   "dependencies": {
+    "@nestjs/cache-manager": "^12.0.2",
     "@nestjs/common": "^12.0.1",
     "@nestjs/config": "^12.0.1",
     "@nestjs/core": "^12.0.1",
@@ -30,6 +31,8 @@
     "@nestjs/platform-express": "^12.0.1",
     "@nestjs/swagger": "^12.0.5",
     "@nestjs/typeorm": "^12.0.2",
+    "cache-manager": "^7.2.9",
+    "cache-manager-redis-store": "^3.0.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "dotenv": "^18.0.9",
@@ -43,6 +46,7 @@
     "@nestjs/mau": "^0.2.6",
     "@nestjs/schematics": "^12.0.0",
     "@nestjs/testing": "^12.0.1",
+    "@types/cache-manager-redis-store": "^3.0.0",
     "@types/express": "^5.0.0",
     "@types/node": "^24.0.0",
     "@types/supertest": "^7.0.0",

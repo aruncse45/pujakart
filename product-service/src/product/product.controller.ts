@@ -13,7 +13,7 @@ import { ProductService } from './product.service.js';
 import { CreateProductDto } from './dto/create-product.dto.js';
 import { UpdateProductDto } from './dto/update-product.dto.js';
 
-@Controller('product')
+@Controller('products')
 export class ProductController {
   constructor(private readonly  productService: ProductService) {}
 
