@@ -6,6 +6,8 @@ import { ConfigModule, ConfigService} from '@nestjs/config';
 import { ProductModule } from './product/product.module.js';
 import {TypeOrmModule} from "@nestjs/typeorm";
 import {Product} from "./product/entities/product.entity.js";
+import { CacheModule } from '@nestjs/cache-manager';
+import * as redisStore from 'cache-manager-redis-store';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -16,8 +18,9 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       appSecret: 'YOUR_APP_SECRET',
       serviceId: 'product-service',
     }),
+
     ConfigModule.forRoot({ isGlobal: true }),
-    // TypeOrmModule.forRoot(),
+
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -32,6 +35,18 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
         synchronize: false,
       }),
     }),
+
+    CacheModule.registerAsync({
+      isGlobal: true,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        store: redisStore,
+        host: config.get('REDIS_HOST'),
+        port: config.get('REDIS_PORT'),
+        ttl: config.get('CACHE_TTL'),
+      }),
+    }),
+
     ProductModule,
   ],
   controllers: [AppController],
