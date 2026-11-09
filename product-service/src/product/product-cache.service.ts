@@ -7,34 +7,109 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 export class ProductCacheService {
   constructor(@Inject(CACHE_MANAGER) private readonly cache: Cache) {}
 
+  private async acquireLock(key: string, ttl = 5000): Promise<boolean> {
+    try {
+      const lockKey = `lock:${key}`;
+      const existing = await this.cache.get<boolean>(lockKey);
+      if (existing) return false;
+      await this.cache.set(lockKey, true, ttl);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async releaseLock(key: string): Promise<void> {
+    const lockKey = `lock:${key}`;
+    await this.cache.del(lockKey);
+  }
+
+  private async waitForLock<T>(
+    key: string,
+    maxWait = 3000,
+  ): Promise<T | undefined> {
+    const start = Date.now();
+    while (Date.now() - start < maxWait) {
+      const cachedValue = await this.cache.get<T>(key);
+      if (cachedValue) return cachedValue;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+
+  private async getVersion(): Promise<number> {
+    try {
+      const version = await this.cache.get<number>('products:version');
+      return version ?? 1;
+    } catch {
+      return 1;
+    }
+  }
+
   async getList(page: number, limit: number): Promise<Product[] | undefined> {
-    return this.cache.get<Product[]>(`products:page${page}:limit${limit}`);
+    try {
+      const version = await this.getVersion();
+      const cacheKey = `products:v${version}page${page}:limit${limit}`;
+      const cached = this.cache.get<Product[]>(cacheKey);
+
+      if (cached) return cached;
+
+      const getLock = await this.acquireLock(cacheKey);
+      if (!getLock) {
+        return await this.waitForLock<Product[]>(cacheKey);
+      }
+      return undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   async setList(
     page: number,
     limit: number,
     products: Product[],
-  ) {
-    await this.cache.set(`products:page${page}:limit${limit}`, products);
+  ): Promise<void> {
+    const version = await this.getVersion();
+    const cacheKey = `products:v${version}page${page}:limit${limit}`;
+    await this.cache.set(cacheKey, products);
+    await this.releaseLock(cacheKey);
+  }
+
+  async setOne(id: string, product: Product): Promise<void> {
+    try {
+      await this.cache.set(`products:${id}`, product);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('Cache setOne failed:', error.message);
+      }
+    }
   }
 
   async getOne(id: string): Promise<Product | undefined> {
-    return this.cache.get<Product>(`product:${id}`);
-  }
-
-  async setOne(id: string, product: Product) {
-    await this.cache.set(`product:${id}`, product);
+    try {
+      return this.cache.get<Product>(`products:${id}`);
+    } catch {
+      return undefined;
+    }
   }
 
   async invalidateOne(id: string): Promise<void> {
-    await this.cache.del(`product:${id}`);
+    try {
+      await this.cache.del(`products:${id}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('Cache invalidateOne failed:', error.message);
+      }
+    }
   }
 
-  async invalidateList(): Promise<void> {
-    const keys: string[] = await (this.cache as any).store.keys('products:*');
-    for (const key of keys) {
-      await this.cache.del(key);
+  async invalidateAllList(): Promise<void> {
+    try {
+      const version = await this.getVersion();
+      await this.cache.set(`products:version`, version + 1, 0);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('Cache invalidateAllList failed:', error.message);
+      }
     }
   }
 }

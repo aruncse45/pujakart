@@ -17,7 +17,7 @@ export class ProductService {
   async create(dto: CreateProductDto) {
     const newProduct = this.productRepo.create(dto);
     const product = await this.productRepo.save(newProduct);
-    await this.productCacheService.invalidateList();
+    await this.productCacheService.invalidateAllList();
     return product;
   }
 
@@ -42,19 +42,19 @@ export class ProductService {
   }
 
   async update(id: string, dto: UpdateProductDto) {
-    const product= await this.findOne(id)
-    Object.assign(product, dto)
-    const updated = await this.productRepo.save(product)
+    const product = await this.findOne(id);
+    Object.assign(product, dto);
+    const updated = await this.productRepo.save(product);
     await this.productCacheService.invalidateOne(id);
-    await this.productCacheService.invalidateList();
+    await this.productCacheService.invalidateAllList();
     return updated;
   }
 
   async delete(id: string) {
-    const product = await this.findOne(id)
-    const deleted = await this.productRepo.remove(product)
+    const product = await this.findOne(id);
+    const deleted = await this.productRepo.remove(product);
     await this.productCacheService.invalidateOne(id);
-    await this.productCacheService.invalidateList();
+    await this.productCacheService.invalidateAllList();
     return deleted;
   }
 }

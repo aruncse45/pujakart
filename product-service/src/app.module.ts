@@ -7,7 +7,8 @@ import { ProductModule } from './product/product.module.js';
 import {TypeOrmModule} from "@nestjs/typeorm";
 import {Product} from "./product/entities/product.entity.js";
 import { CacheModule } from '@nestjs/cache-manager';
-import * as redisStore from 'cache-manager-redis-store';
+import Keyv from 'keyv';
+import keyvRedis from '@keyv/redis';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -40,10 +41,11 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       isGlobal: true,
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        store: redisStore,
-        host: config.get('REDIS_HOST'),
-        port: config.get('REDIS_PORT'),
-        ttl: config.get('CACHE_TTL'),
+        stores: new Keyv({
+          store: new keyvRedis(config.get('REDIS_URL')),
+          namespace: 'product-service',
+        }),
+        ttl: Number(config.get('CACHE_TTL')),
       }),
     }),
 
