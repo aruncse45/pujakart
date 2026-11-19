@@ -2,39 +2,14 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Product } from './entities/product.entity.js';
 import type { Cache } from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { RedisLockService } from '../common/redis-lock.service.js';
 
 @Injectable()
 export class ProductCacheService {
-  constructor(@Inject(CACHE_MANAGER) private readonly cache: Cache) {}
-
-  private async acquireLock(key: string, ttl = 5000): Promise<boolean> {
-    try {
-      const lockKey = `lock:${key}`;
-      const existing = await this.cache.get<boolean>(lockKey);
-      if (existing) return false;
-      await this.cache.set(lockKey, true, ttl);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  private async releaseLock(key: string): Promise<void> {
-    const lockKey = `lock:${key}`;
-    await this.cache.del(lockKey);
-  }
-
-  private async waitForLock<T>(
-    key: string,
-    maxWait = 3000,
-  ): Promise<T | undefined> {
-    const start = Date.now();
-    while (Date.now() - start < maxWait) {
-      const cachedValue = await this.cache.get<T>(key);
-      if (cachedValue) return cachedValue;
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-  }
+  constructor(
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    private readonly lock: RedisLockService,
+  ) {}
 
   private async getVersion(): Promise<number> {
     try {
@@ -53,9 +28,9 @@ export class ProductCacheService {
 
       if (cached) return cached;
 
-      const getLock = await this.acquireLock(cacheKey);
+      const getLock = await this.lock.acquireLock(cacheKey);
       if (!getLock) {
-        return await this.waitForLock<Product[]>(cacheKey);
+        return await this.lock.waitForLock<Product[]>(cacheKey);
       }
       return undefined;
     } catch {
@@ -71,7 +46,7 @@ export class ProductCacheService {
     const version = await this.getVersion();
     const cacheKey = `products:v${version}page${page}:limit${limit}`;
     await this.cache.set(cacheKey, products);
-    await this.releaseLock(cacheKey);
+    await this.lock.releaseLock(cacheKey);
   }
 
   async setOne(id: string, product: Product): Promise<void> {
